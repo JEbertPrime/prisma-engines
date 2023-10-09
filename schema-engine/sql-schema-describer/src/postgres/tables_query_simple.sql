@@ -9,5 +9,5 @@ SELECT
 FROM pg_class AS tbl
 INNER JOIN pg_namespace AS namespace ON namespace.oid = tbl.relnamespace
 WHERE
-    tbl.relkind = 'r' AND namespace.nspname = ANY ( $1 )
+    (tbl.relkind = 'r' OR tbl.relkind = 'f') AND namespace.nspname = ANY ( $1 )
 ORDER BY namespace, table_name;

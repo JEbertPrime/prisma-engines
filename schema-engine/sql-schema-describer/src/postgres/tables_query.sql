@@ -13,6 +13,8 @@ WHERE
     (tbl.relkind = 'r' AND tbl.relispartition = 'f')
       OR -- when it's a partition
     tbl.relkind = 'p'
+    OR 
+    tbl.relkind = 'f'
   )
   AND namespace.nspname = ANY ( $1 )
 ORDER BY namespace, table_name;
