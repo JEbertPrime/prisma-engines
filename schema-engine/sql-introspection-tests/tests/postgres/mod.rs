@@ -478,3 +478,57 @@ async fn commenting_stopgap(api: &mut TestApi) -> TestResult {
 
     Ok(())
 }
+
+#[test_connector(tags(Postgres), exclude(CockroachDb))]
+
+async fn foreign_table_stopgap(api: &mut TestApi) -> TestResult {
+    // https://www.notion.so/prismaio/Index-sort-order-Nulls-first-last-PostgreSQL-cf8265dff0f34dd195732735a4ce9648
+    let setup = indoc! {r#"
+    CREATE EXTENSION IF NOT EXISTS file_fdw;
+    CREATE SERVER test_server FOREIGN DATA WRAPPER file_fdw;
+"#};
+
+    api.raw_cmd(setup).await;
+    let schema = indoc! {r#"
+      CREATE TABLE foo (
+          id INT PRIMARY KEY,
+          a INT NOT NULL
+      );
+      
+      CREATE FOREIGN TABLE bar (
+        id INT,
+        a INT NOT NULL
+      ) SERVER test_server 
+      OPTIONS(filename 'test.csv', format 'csv');
+  "#};
+
+    api.raw_cmd(schema).await;
+
+    let expectation = expect![[r#"
+      generator client {
+        provider = "prisma-client-js"
+      }
+
+      datasource db {
+        provider = "postgresql"
+        url      = "env(TEST_DATABASE_URL)"
+      }
+
+      model foo {
+        id Int @id
+        a  Int
+      }
+  "#]];
+
+    api.expect_datamodel(&expectation).await;
+
+    let expectation = expect![[r#"
+      *** WARNING ***
+
+      This database contains foreign tables, which are not supported. [Link to page detailing more info]
+  "#]];
+
+    api.expect_warnings(&expectation).await;
+
+    Ok(())
+}
